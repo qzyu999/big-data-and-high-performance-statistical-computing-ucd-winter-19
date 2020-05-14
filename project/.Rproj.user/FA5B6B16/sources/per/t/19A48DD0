@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1552031500269.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2737577588",
+    "id" : "19A48DD0",
+    "lastKnownWriteTime" : 1553274000,
+    "last_content_update" : 1553274000592,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/project/analysis.R",
+    "project_path" : "analysis.R",
+    "properties" : {
+        "cursorPosition" : "12,33",
+        "scrollLine" : "6",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

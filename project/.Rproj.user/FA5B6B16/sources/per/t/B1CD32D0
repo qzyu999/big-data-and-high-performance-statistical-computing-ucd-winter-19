@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1553160703618.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "74|60|102|0|\n104|90|114|0|\n116|61|133|0|\n",
+    "hash" : "3832086289",
+    "id" : "B1CD32D0",
+    "lastKnownWriteTime" : 1553237798,
+    "last_content_update" : 1553237798567,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/project/text_mine.R",
+    "project_path" : "text_mine.R",
+    "properties" : {
+        "cursorPosition" : "140,0",
+        "scrollLine" : "61",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 8,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

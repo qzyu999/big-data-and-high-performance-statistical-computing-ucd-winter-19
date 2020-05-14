@@ -1,0 +1,115 @@
+library(lubridate); library(tidyverse); library(plotly); library(scales)
+year_breaks_func <- function(year_vec, num_breaks) {
+  # This function is for efficiently finding the number
+  # of breaks to place inbetween the years on the x-axis.
+  unique_years <- sort(unique(year_vec))
+  unique_years[seq(1, length(unique_years), num_breaks)]
+}
+
+# https://stackoverflow.com/questions/5237557/extract-every-nth-element-of-a-vector
+# http://www.sthda.com/english/wiki/ggplot2-title-main-axis-and-legend-titles
+# https://stackoverflow.com/questions/19622063/adding-vertical-line-in-plot-ggplot
+# https://stackoverflow.com/questions/5106782/use-of-ggplot-within-another-function-in-r
+econ_ggplot <- function(econ_data, x_label = 'Years', y_label, 
+                        main_title, breaks_vec) {
+  ggplot(econ_data) + geom_line(mapping = aes(x = date, y = value)) +
+    facet_wrap(~ series_id, scales = 'free') + ggtitle(main_title) +
+    xlab(x_label) + ylab(y_label) + geom_vline(xintercept = 2007) +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+    scale_x_continuous(breaks = breaks_vec)
+}
+
+# https://github.com/tidyverse/ggplot2/issues/1048
+econ_ggplot2 <- function(econ_data, x_label = 'Years', y_label, 
+                          main_title) {
+  ggplot(econ_data) + geom_line(mapping = aes(x = date, y = value)) +
+  ggtitle(main_title) + xlab(x_label) + ylab(y_label) + 
+    geom_vline(aes(xintercept = as.numeric(ymd('2007-02-20')))) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1)) #+
+}
+
+econ_filter1 <- function(series_id_start = '', series_id_end = '', start_date = 0, 
+                         num_breaks, y_label, main_title) {
+  econ_data <- fred_api(series_id_start = series_id_start, 
+                       series_id_end = series_id_end)
+  econ_data <- econ_data[econ_data$date > start_date, ]
+  econ_years <- year_breaks_func(year_vec = econ_data$date, num_breaks = num_breaks)
+  
+  econ_ggplot(econ_data = econ_data, y_label = y_label,
+                           main_title = main_title,
+                           breaks_vec = econ_years)
+}
+
+econ_filter2 <- function(series_id, start_date = 0,
+                      y_label, main_title) {
+  api_query <- fredr(series_id = series_id)
+  econ_data <- api_query[, c('date', 'value')]
+  econ_data <- econ_data[year(econ_data$date) > start_date, ]
+  econ_ggplot2(econ_data = econ_data, y_label = y_label,
+               main_title = main_title)  
+}
+
+# pop size
+state_pop <- econ_filter1(series_id_end = 'POP', start_date = 2000, 
+                          num_breaks = 3, y_label = 'Population',
+                          main_title = 'State Population 2000-2018')
+# lagging indicator?
+
+# med income
+state_med_inc <- econ_filter1(series_id_start = 'MEHOINUS', 
+  series_id_end = 'A672N', start_date = 1995, num_breaks = 4, 
+  y_label = 'Median Income', main_title = 'State Median Income')
+# try to explain
+
+# classify...east/west, groups high gdp, etc.
+
+# education level
+state_edu <- econ_filter1(series_id_start = 'GCT1502', num_breaks = 2, 
+  y_label = 'Percentage with Bachelor\'s Degree or Higher', 
+  main_title = 'State Education Level')
+
+# Nation-wide data
+# unemployment
+unemp_plot <- econ_filter2(series_id = 'UNRATE', start_date = 2000, 
+  y_label = 'Unemployment (%)', main_title = 'Unemployment Rate')
+
+
+# interest rates
+ir_plot <- econ_filter2(series_id = 'FEDFUNDS', start_date = 1980, 
+  y_label = 'Interest Rate (%)', main_title = 'Interest Rates')
+# hits 0
+
+# overall spending
+
+# debt
+debt_plot <- econ_filter2(series_id = 'GFDEBTN', start_date = 1970, 
+  y_label = 'Millions ($)', main_title = 'Total Public Debt (1970-2018)')
+
+# region, east, west, coast, etc.
+
+# 1 year?????????????
+ed_06 <- edu_level[edu_level$date == '2006', c('value')]
+med_inc_data_06 <- med_inc_data[med_inc_data$date == '2006', c('value')]
+pop_data_06 <- pop_data[pop_data$date == '2006', c('value')]
+state_spending_06 <- state_spending[state_spending$fiscal_year == '2006', c('annual_spending')]
+model_06 <- cbind(state_spending_06, pop_data_06, med_inc_data_06, ed_06, state.abb)
+model_06 <- as.data.frame(model_06)
+colnames(model_06) <- c('spending', 'pop', 'med_inc', 'edu', 'state')
+
+plot(pop_data_06, state_spending_06)
+plot(ed_06, state_spending_06)
+plot(med_inc_data_06, state_spending_06)
+
+fit_06 <- lm(spending~pop+med_inc+edu+state, data = model_06)
+
+# indep across years???
+
+# dist of annual spending...normal? log transformation? hist, density, qqnorm
+
+# independece across state
+
+# same model in different years?
+
+# multicollonearity, transformationsssss
+
+# pred ~ response

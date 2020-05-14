@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1552082864050.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1480480342",
+    "id" : "3F7468D7",
+    "lastKnownWriteTime" : 1553243994,
+    "last_content_update" : 1553243994425,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/project/idea.R",
+    "project_path" : "idea.R",
+    "properties" : {
+        "cursorPosition" : "72,2",
+        "scrollLine" : "53",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

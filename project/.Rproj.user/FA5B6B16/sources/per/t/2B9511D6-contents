@@ -1,0 +1,163 @@
+library(dplyr); library(beepr); library(parallel); library(tm)
+library(SnowballC); library(NLP) # Load libraries
+transaction <- read.csv('transaction.csv', stringsAsFactors = FALSE)
+
+bus_cat <- colnames(transaction)[c(5, 6, 8, 36, 61)]
+award_agency <- colnames(transaction)[c(5, 6, 8, 36, 53)]
+
+# Initial subset
+tran_sub <- subset(transaction, select = bus_cat,
+  transaction$fiscal_year > 2010 & transaction$fiscal_year < 2019 &
+  transaction$total_obligation > 0 & transaction$business_categories != '' &
+  # transaction$awarding_toptier_agency_name != '' &
+  transaction$recipient_location_state_code %in% state.abb &
+  transaction$award_id != '')
+
+tran_sub2 <- subset(transaction, select = award_agency,
+  transaction$fiscal_year > 2010 & transaction$fiscal_year < 2019 &
+  transaction$total_obligation > 0 & 
+  # transaction$business_categories != '' &
+  transaction$awarding_toptier_agency_name != '' &
+  transaction$recipient_location_state_code %in% state.abb &
+  transaction$award_id != '')
+
+### text_mine() functions
+tran_dupl_removal <- function(tran_data) {
+  # Combine duplicate award_id's
+  id_table <- table(tran_sub$award_id)
+  id_table_sub <- id_table[id_table > 1]
+  dupl_id <- names(id_table_sub)
+  tran_dupl <- tran_sub[tran_sub$award_id %in% dupl_id, ]
+  tran_not_dupl <- tran_sub[!tran_sub$award_id %in% dupl_id, ]
+  tran_dupl_unique <- unique_id_func(tran_dupl)
+  tran_comb <- rbind(tran_not_dupl, tran_dupl_unique)
+  return(tran_comb)
+}
+# yearly_df = tran_sub_year[[1]]
+year_to_state <- function(yearly_df = tran_data_year[[1]], desc = 'business_categories') {
+  # Returns two lists, where the description and spending for a specific
+  # year for all states is returned.
+  yearly_df <- data.frame(yearly_df, stringsAsFactors = FALSE)
+  state_split <- split(yearly_df, yearly_df$recipient_location_state_code)
+  state_desc <- lapply(state_split, function(x) x[,desc])
+  state_spend <- lapply(state_split, function(x) x$total_obligation)
+  return(list(state_desc, state_spend))
+}
+
+annual_desc_spend <- function(year_list_element = year_to_state_desc_spend[[1]]) {
+  # Takes the yearly list element and breaks down into list of 50 descriptions
+  # and 50 spending amounts. Then filters the descriptions into a weighted
+  # character vector. Returns top 25.
+  year_desc <- year_list_element[[1]]
+  year_spend <- year_list_element[[2]]
+  
+  # Go by state to find the weighted character vectors.
+  # Creates a list of 50 states each with a list of an index and string.
+  state_desc_word_filter <- lapply(year_desc, 
+                                   function(x) word_filter(year_desc_element = x))
+  
+  # https://stackoverflow.com/questions/14848172/appending-a-list-to-a-list-of-lists-in-r
+  # Add the spending to the list of 50.
+  for(i in 1:length(state_desc_word_filter)) {
+    state_desc_word_filter[[i]][length(state_desc_word_filter[[i]]) + 1] <- 
+      year_spend[i]
+  }
+  
+  # Sort through each 50 states in list and use the word filter.
+  state_weighted_top25 <- lapply(state_desc_word_filter, function(x)
+    state_list_to_char_vec(state_string_ind_spend = x))
+  return(state_weighted_top25)
+}
+
+word_filter <- function(year_desc_element = year_desc[[1]]) {
+  # Process of doing initial text mining of description.
+  removed_punc = gsub('[[:punct:]]', ' ', year_desc_element)
+  lower_case = tolower(removed_punc)
+  
+  # Remove stopwords, create stem words
+  stop_words1 = removeWords(lower_case, stopwords('en'))
+  stop_words2 = removeWords(stop_words1, stopwords('SMART'))
+  stem_words = stemDocument(stop_words2)
+  
+  # Deal with any white space and create removal index
+  clean_whitespace = stripWhitespace(stem_words)
+  remove_na = clean_whitespace[clean_whitespace != 'NA']
+  rm_ind = which(remove_na != '')
+  lead_trail = gsub("^\\s+|\\s+$", "", clean_whitespace[rm_ind])
+  rm_ind = which(lead_trail != '')
+  
+  return(list(lead_trail, rm_ind))
+}
+
+state_list_to_char_vec <- function(state_string_ind_spend = 
+                                     state_desc_word_filter[[1]]) {
+  # Creates a data frame from filtered descriptions and then returns
+  # the final top 25 weighted words.
+  lead_trail <- state_string_ind_spend[[1]]
+  rm_ind <- state_string_ind_spend[[2]]
+  price <- state_string_ind_spend[[3]]
+  
+  # price[rm_ind] / sapply(strsplit(lead_trail[rm_ind], " "), length)
+  
+  character_vector <- data.frame(keywords = lead_trail[rm_ind], # df of keywords and prices
+                                 weighted_price = price[rm_ind] /
+                                 sapply(strsplit(lead_trail[rm_ind], " "), length),
+                                 stringsAsFactors = FALSE)
+  weighted_char_vectors(price = price[rm_ind], character_vector = character_vector)
+}
+
+weighted_char_vectors <- function(price, character_vector) {
+  # The weighted_char_vectors function will take in the price and character
+  # vector which have previously been created. It will then split the 
+  # character vector into the individual keywords of each expense, and then
+  # assign the average price to each keyword. These keywords are then combined
+  # so that keywords which are matching will also have their weighted prices
+  # from across different expenses summed together.
+  
+  # Split the keywords from each exepense, and assign them to their average
+  # prices from each character vector.
+  keywords_list = strsplit(character_vector$keywords, ' ', fixed = TRUE)
+  keywords_list_len = sapply(keywords_list, length)
+  avg_price = character_vector$weighted_price / keywords_list_len
+  weighted_words = Map(cbind, keywords_list, avg_price)
+  weighted_words = do.call("rbind", weighted_words)
+  
+  # Turn the keywords into a dataframe, and then group the dataframe
+  # by keyword to sum the total weighted average.
+  weighted_df = as.data.frame(weighted_words, stringsAsFactors = FALSE)
+  names(weighted_df) = c("keywords", "char_weights")
+  weighted_df$char_weights = as.numeric(weighted_df$char_weights)
+  sum_df = tapply(weighted_df$char_weights, weighted_df$keywords, 
+                  function(x) sum(x, na.rm = TRUE))
+  
+  # Return the top 25 keywords, along with their weighted prices in terms
+  # of their proportion.
+  top_25 = head(sort(sum_df, decreasing = TRUE), n = 25)
+  round(top_25 / sum(top_25), 3)
+}
+
+# Clean, remove duplicates
+### text_mine()
+text_mine <- function(data_sub = tran_sub, curr_desc = 'business_categories') {
+  # can change to tran_sub2, awarding_toptier_agency_name
+  data_sub$recipient_location_state_code <- # Fix datatype
+  as.character(data_sub$recipient_location_state_code)
+  data_sub <- data.frame(data_sub, stringsAsFactors = FALSE)
+  # https://www.r-bloggers.com/r-tip-use-stringsasfactors-false/
+  
+  tran_comb <- tran_dupl_removal(tran_data = data_sub) # Remove duplicates
+  
+  tran_data_year <- split(tran_comb, tran_comb$fiscal_year) # Split by year
+  
+  year_to_state_desc_spend <- lapply(tran_data_year, 
+    function(x) year_to_state(yearly_df = x, desc = curr_desc))
+  
+  ann_state_desc <- lapply(year_to_state_desc_spend, function(x) 
+    annual_desc_spend(year_list_element = x))
+  ann_state_desc
+}
+
+bus_text_mine <- text_mine(data_sub = tran_sub, 
+                           curr_desc = business_categories)
+agency_name_text_mine <- text_mine(data_sub = tran_sub2, 
+                           curr_desc = awarding_toptier_agency_name)

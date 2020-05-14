@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1553234545230.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3844756907",
+    "id" : "ABF81403",
+    "lastKnownWriteTime" : 1553274002,
+    "last_content_update" : 1553274002338,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/project/API.R",
+    "project_path" : "API.R",
+    "properties" : {
+        "cursorPosition" : "40,57",
+        "scrollLine" : "26",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -1,0 +1,128 @@
+library(plotly)
+years <- unique(ann_state_spending$fiscal_year)
+
+percentage_mat <- matrix(data = NA, nrow = length(state.abb), ncol = length(years))
+
+spending_percentage_func <- function(spending_years = years, years_index = 1, 
+                                     spending_data = ann_state_spending) {
+  # Calculates the percentage of spending that each state contributes annually.
+  # Returns a matrix where the rows are states in alphabetical order, and the
+  # columns are years.
+  annual_state_data <- spending_data[spending_data$fiscal_year == 
+                                       spending_years[years_index],]
+  annual_total_spending <- sum(annual_state_data$state_spending)
+  spending_percentage <- round(annual_state_data$state_spending / 
+                                 annual_total_spending, 6) * 100
+  percentage_mat[,years_index] <- spending_percentage
+}
+percentage_df <- sapply(1:length(years), function(x) spending_percentage_func(years_index = x))
+percentage_df <- as.data.frame(percentage_df)
+colnames(percentage_df) <- years
+percentage_df$state <- state.abb
+head(percentage_df)
+
+# head(NGSP, 30)
+
+# Calculate GDP percentage per state
+gdp_years <- unique(NGSP$date)
+gdp_prop_mat <- matrix(data = NA, nrow = length(state.abb), ncol = length(gdp_years))
+gdp_percentage_func <- function(gdp_mat = gdp_prop_mat, curr_gdp_year = gdp_years, 
+                                years_index, gdp_data = NGSP) {
+  # Calculates the percentage of GDP that each state contributes annually. Returns
+  # a matrix where each row are the states in alphabetical order, and that the columns
+  # are years where GDP is calculated.
+  annual_gdp <- gdp_data[gdp_data$date == curr_gdp_year[years_index], 'value']
+  tot_annual_gdp <- sum(annual_gdp)
+  gdp_percentage <- round((annual_gdp / tot_annual_gdp) * 100, 6)
+  gdp_mat[, years_index] <- gdp_percentage
+}
+
+gdp_percentage <- sapply(1:length(gdp_years), function(x) gdp_percentage_func(years_index = x))
+colnames(gdp_percentage) <- gdp_years
+gdp_percentage <- as.data.frame(gdp_percentage)
+gdp_percentage$state <- state.abb
+head(gdp_percentage)
+
+# Calculae overall GDP percentage
+colnames(NGSP)
+tot_gdp <- NGSP %>%
+  select(series_id, value) %>%
+  group_by(series_id) %>%
+  summarise(tot_gdp = sum(value))
+tot_gdp$gdp_prop <- prop.table(tot_gdp$tot_gdp) * 100
+
+
+# Total state spending porportions
+tot_state_spending <- ann_state_spending %>%
+  select(recipient_location_state_code, state_spending) %>%
+  group_by(recipient_location_state_code) %>%
+  summarise(tot_state_spending = sum(state_spending))
+
+tot_state_spending$prop <- prop.table(tot_state_spending$tot_state_spending) * 100
+
+### compare two ratios...
+head(percentage_df)
+head(gdp_percentage)
+# overlap...2011 - 2017
+overlap_years <- head(colnames(percentage_df), -3)
+overlap_spending <- percentage_df[, overlap_years]
+overlap_gdp <- gdp_percentage[, overlap_years]
+rownames(overlap_gdp) <- state.abb
+rownames(overlap_spending) <- state.abb
+
+# overlap_spending
+# overlap_gdp
+
+state_cor <- mapply(cor, as.data.frame(t(overlap_spending)), 
+                    as.data.frame(t(overlap_gdp)))
+sort(state_cor)
+hist(state_cor)
+
+state_heatmap <- as.data.frame(state_cor)
+state_heatmap$state <- rownames(state_heatmap)
+rownames(state_heatmap) <- NULL
+# head(state_heatmap)
+# jeffgswanson.com/create-us-heatmap-r
+# https://plot.ly/r/choropleth-maps/#choropleth-maps-in-r
+geo <- list(
+  scope = 'usa',
+  showland = TRUE,
+  landcolor = toRGB("gray95"),
+  countrycolor = toRGB("gray80")
+)
+par(mfrow=c(2,2))
+fund_gdp_cor <- plot_geo(state_heatmap, locationmode = 'USA-states') %>%
+  add_trace(
+    z = state_heatmap$state_cor, locations = state_heatmap$state, 
+    colors = 'Reds'
+  ) %>%
+  colorbar(title = "Correlation") %>%
+  layout(
+    title = '2001-2017 Correlation Between State Funds and State GDP',
+    geo = geo
+  )
+fund_gdp_cor
+spend_geo <- plot_geo(tot_state_spending, locationmode = 'USA-states') %>%
+  add_trace(
+    z = tot_state_spending$prop, 
+    locations = tot_state_spending$recipient_location_state_code, 
+    colors = 'Greens'
+  ) %>%
+  colorbar(title = "Percentage of Spending (%)") %>%
+  layout(
+    title = '2001-2019 Federal Spending by State',
+    geo = geo
+  )
+spend_geo
+gdp_geo <- plot_geo(tot_gdp, locationmode = 'USA-states') %>%
+  add_trace(
+    z = tot_gdp$gdp_prop, locations = tot_gdp$series_id, 
+    colors = 'Blues'
+  ) %>%
+  colorbar(title = "Percentage of GDP (%)") %>%
+  layout(
+    title = '1997-2017 GDP per State',
+    geo = geo
+  )
+gdp_geo
+### Correlation doesn't look correct

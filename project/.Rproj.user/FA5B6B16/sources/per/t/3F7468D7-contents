@@ -1,0 +1,81 @@
+library(astsa)
+# pairwise test, data not independent in group
+# ca, washington, two states yearly data, each year may behave different, use 1-other
+# residual vs observations
+# 
+# split, and do analysis
+# account for lag after gfc
+
+
+# https://stackoverflow.com/questions/29522841/the-curious-case-of-arima-modelling-using-r
+# https://stackoverflow.com/questions/45439317/how-to-save-plots-in-r-and-have-them-nice-looking
+norm_diff_plots <- function(state_spending = ann_state_spending, curr_state = state.abb, 
+                            state_index = 1, folder_path) {
+  png(paste(folder_path, curr_state[state_index], ".png", sep = ''), 
+      width = 1920, height = 1000) # Save to file
+  par(mfrow=c(2,2))
+  curr_state_spending <- state_spending[state_spending$recipient_location_state_code == 
+                                          curr_state[state_index], ]
+  plot(curr_state_spending$fiscal_year, curr_state_spending$state_spending, type = 'l',
+       main = paste(curr_state[state_index],' Total Obligation'), 
+       xlab = 'Year', ylab = 'Annual Total Obligation')
+  points(curr_state_spending$fiscal_year, curr_state_spending$state_spending)
+  
+  # Differenced data
+  plot(curr_state_spending$fiscal_year[-1], diff(curr_state_spending$state_spending), 
+       type = 'l', main = paste(curr_state[state_index],' Differenced Total Obligation'), 
+       xlab = 'Year', ylab = 'Differenced Annual Total Obligation')
+  points(curr_state_spending$fiscal_year[-1], diff(curr_state_spending$state_spending))
+  
+  # ACF/PACF
+  acf(diff(curr_state_spending$state_spending), main = 'ACF (differenced)')
+  pacf(diff(curr_state_spending$state_spending), main = 'PACF (differenced)')
+  dev.off()
+}
+
+sapply(1:length(state.abb), function(x) 
+  norm_diff_plots(state_spending = ann_state_spending, state_index = x, 
+                  folder_path = './forecast/'))
+
+
+# https://stackoverflow.com/questions/40397833/is-there-a-way-to-prevent-astsasarima-from-plotting
+# https://www.statmethods.net/advgraphs/axes.html
+
+ann_spending_scaled <- ann_state_spending
+ann_spending_scaled$state_spending <- log(ann_spending_scaled$state_spending) #/1e+5
+fitting_sarima = function(i, j, state_forecast = curr_forecast){
+  sarima(state_forecast$state_spending, 
+         p = i, d = 0, q = j, Model = FALSE, details = FALSE)
+}
+
+ann_spending_forecast <- function(ann_spending = ann_spending_scaled, folder_path,
+                                  curr_state = state.abb, state_index = 1) {
+  # This function will plot the observed and fitted values for an ARIMA model according to AICc.
+  # Additionally, it will create a forecast for the next 5 years in annual total obligation.
+  
+  png(paste(folder_path, state.abb[state_index], ".png", sep = ''))
+      # width = 1920, height = 1000) # Save to file
+  
+  # Load current state data, and find the p, q for ARIMA(p,1,q)
+  curr_forecast <- ann_spending[ann_spending$recipient_location_state_code == 
+                                  curr_state[state_index],]
+  pq_choices <- data.frame(p = rep(0:4, each = 5), q = rep(0:4, 5))
+  all_sarima <- mapply(fitting_sarima, pq_choices$p, pq_choices$q)
+  
+  npair = dim(all_sarima)[2]
+  AICC_result = sapply(1:npair, function(x) all_sarima[,x]$AICc)
+  pq <- pq_choices[which.min(AICC_result),]
+  
+  arima_p1q <- sarima(curr_forecast$state_spending, # Fit ARIMA(p,1,q) model
+         # p = pq[,1], d = 1, q = pq[,2], 
+         p = 4, d = 1, q = 2, 
+         details = FALSE, Model = FALSE)
+  
+  sarima.for(curr_forecast$state_spending, n.ahead = 5, 
+             p = pq[,1], d = 1, q = pq[,2])
+  title(paste(state.name[state_index], ' Annual Spending Forecast'))
+  dev.off()
+}
+
+sapply(1:length(state.abb), function(x) 
+  ann_spending_forecast(folder_path = './arima_forecast/', state_index = x))

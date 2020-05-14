@@ -1,0 +1,411 @@
+eda_data <- read.csv('sectors.txt')
+eda_col <- colnames(eda_data)
+head(eda_data)
+
+# Plans:
+# linear regression
+# hard to understand trend, use action_date?
+# time series
+# forecast using time series regression to compare to linear regression?
+# logistic regression
+# based on some variable, can we predict the state? sounds odd
+# possibly some states have some very predictable traits
+  
+# for each state, how do categorical variables change over time...? 
+# naics, business_category, award_category
+
+# https://stackoverflow.com/questions/25707647/merge-multiple-spaces-to-single-space-remove-trailing-leading-spaces
+# https://www.analyticsvidhya.com/blog/2017/03/beginners-guide-on-web-scraping-in-r-using-rvest-with-hands-on-knowledge/
+# https://www.missourieconomy.org/about_us/naics_sect.stm
+library(rvest)
+### Web scrape NAICS sector information
+url <- 'https://www.missourieconomy.org/about_us/naics_sect.stm'
+webpage <- read_html(url)
+html_nodes(webpage,'table')
+web_data <- webpage %>% 
+  html_nodes("table") %>% 
+  html_nodes("td") %>% 
+  html_text("td")
+
+# Sort html table data
+code_posi <- grep("[0-9]", web_data)
+x <- code_posi[1]:length(web_data)
+pos <- code_posi - 3
+pat <- rep(seq_along(pos), times = diff(c(pos, length(x) + 1))) 
+row_num_posi_list <- split(x, pat)
+naics_sec <- do.call("rbind", lapply(row_num_posi_list, function(x) web_data[x]))
+wrong_sec_info <- grepl("[0-9]", naics_sec[,3])
+naics_sec_corrected <- naics_sec[,3]
+for (i in 1:length(naics_sec[,3])){ # Correct sector information
+  if (wrong_sec_info[i]) {
+    naics_sec_corrected[i] <- naics_sec_corrected[i-1]
+  }
+}
+naics_sec[,3] <- naics_sec_corrected
+naics_sec <- data.frame(naics_sec)
+
+# Clean NAICS data frame
+names(naics_sec) <- c("naics_code", "description", "sector")
+naics_sec$description <- gsub("[\r\n\t]", "", naics_sec$description)
+naics_sec$description <- gsub("\\s+", " ", naics_sec$description)
+naics_sec$naics_code <- as.character(naics_sec$naics_code)
+f1 <- rbind(naics_sec[4,], naics_sec[4,])
+f1$naics_code <- c(31,32)
+f2 <- rbind(naics_sec[6,], naics_sec[6,])
+f2$naics_code <- c(48,49)
+f3 <- rbind(naics_sec[8,], naics_sec[8,])
+f3$naics_code <- c(44,45)
+naics_sec <- rbind(naics_sec, f1, f2, f3)
+naics_sec <- naics_sec[c(-4,-6,-8), ]
+naics_sec_sub <- naics_sec[,-2]
+rownames(naics_sec_sub) <- NULL
+
+# Subset data to important sections
+eda_states = subset(transaction, select = c('recipient_location_state_code', 
+                                         'fiscal_year', 'naics_code'),
+                    !is.na(transaction$naics_code) & 
+                      transaction$recipient_location_state_code %in% state.abb &
+                      transaction$fiscal_year != "")
+eda_states$naics_code_sub <- substr(eda_states$naics_code, start = 1, stop = 2)
+eda_states$sectors <- naics_sec_sub$sector[match(eda_states$naics_code_sub, 
+          naics_sec_sub$naics_code)] # Add sector information
+
+state_sec_func <- function(state_data = eda_states, state_index = 1) {
+  # Find proportion of transactions by sector, returns percentage 
+  # of each sector per state.
+  curr_state <- state_data[state_data$recipient_location_state_code == 
+                             state.abb[state_index], ]
+  table(curr_state$sectors) / sum(table(curr_state$sectors))
+}
+
+sec_years <- seq(2011, 2018, 1)
+# annual_state_sec_func <- function(state_data = eda_states, state_index = 1, 
+#                                   years_vec = sec_years) {
+#   # Find proportion of transactions by sector, returns percentage 
+#   # of each sector per state.
+#   curr_state <- state_data[state_data$recipient_location_state_code == 
+#                              state.abb[state_index], ]
+#   for(i in years_vec) {
+#     curr_year_state <- curr_state[curr_state$fiscal_year == years_vec[i],]
+#     table(curr_year_state$sectors) / sum(table(curr_year_state$sectors))
+#   }
+#   curr_state[curr_state$fiscal_year, ]
+# }
+
+### do this by year
+head(eda_states)
+eda_states_sub <- eda_states[eda_states$fiscal_year %in% sec_years, ]
+eda_states_sub_year <- split(eda_states_sub, eda_states_sub$fiscal_year)
+annual_state_list <- lapply(eda_states_sub_year, function(x) 
+  sapply(1:length(state.abb), function(y) 
+    state_sec_func(state_index = y, state_data = x)))
+for(i in 1:length(annual_state_list)) {
+  colnames(annual_state_list[[i]]) <- state.abb
+}
+colnames(state_sec_df) <- state.abb
+# state_sec_df_annual <- sapply(1:length(state.abb), 
+#         function(x) state_sec_func(state_index = x, state_data = eda_states))
+# state_sec_df = sapply(1:length(state.abb), function(x) state_sec_func(state_index = x))
+heatmap(state_sec_df, col = heat.colors(256))
+# title(main = 'Heatmap', )
+# https://www.r-graph-gallery.com/215-the-heatmap-function/
+
+
+# geoplot? each state and their proportions?
+# can do separate plot for each sector, see which ones show states with densities elsewhere
+state_sec_df[,1]
+# analyze trend over time
+### !!!!!
+
+### Geoplot of proportions for sectors
+eda_sect <- subset(eda_states, select = c('sectors', 
+    'recipient_location_state_code'), sectors != "")
+# Top sectors
+top_sec <- head(sort(table(eda_sect$sectors), decreasing = TRUE))
+
+dim(eda_sect)
+
+head(state_sec_df)
+services_df <- as.data.frame(state_sec_df[names(top_sec[1]),])
+colnames(services_df) <- c('percentage')
+services_df$states <- rownames(services_df)
+rownames(services_df) <- NULL
+services_df$percentage <- services_df$percentage * 100
+
+annual_state_list[2]
+
+library(htmlwidgets); library(RColorBrewer)
+
+# https://stackoverflow.com/questions/4357101/promise-already-under-evaluation-recursive-default-argument-reference-or-earlie
+# https://stackoverflow.com/questions/41399795/savewidget-from-htmlwidget-in-r-cannot-save-html-file-in-another-folder
+# sector_geo <- function(geo_plot = geo_usa, sector_df, color_scheme = 'Reds',
+#                        legend_title = "Percentage (%)", sec_name) {
+#   # Saves a plotly geo heatmap for a specific sector. Outlines the different
+#   # percentages that each state has for a given sector. Saves to interactive html.
+#   file_path <- file.path(getwd(), "sector_geo", paste0(sec_name, '.html'))
+# 
+#   sector_plot <- plot_geo(sector_df, locationmode = 'USA-states') %>%
+#     add_trace(
+#       z = sector_df$percentage, locations = sector_df$states,
+#       colors = color_scheme
+#     ) %>%
+#     colorbar(title = legend_title) %>%
+#     layout(
+#       title = paste('Prevalence of ', sec_name, ' Sector by State (by %)'),
+#       geo = geo_plot
+#     )
+#   saveWidget(as_widget(sector_plot), file = file_path)
+# }
+geo_usa <- list(
+  scope = 'usa',
+  showland = TRUE,
+  landcolor = toRGB("gray95"),
+  countrycolor = toRGB("gray80")
+)
+sector_geo <- function(geo_plot = geo_usa, sector_df = services_df, color_scheme = 'Reds', 
+                       legend_title = "Percentage (%)", sec_name) {
+  # Saves a plotly geo heatmap for a specific sector. Outlines the different
+  # percentages that each state has for a given sector. Saves to interactive html.
+  # file_path <- file.path(getwd(), "sector_geo", paste0(sec_name, '.html'))
+  
+  sector_plot <- 
+    plot_geo(sector_df, locationmode = 'USA-states') %>%
+    add_trace(
+      z = sector_df$percentage, locations = sector_df$states, 
+      colors = color_scheme
+    ) %>%
+    colorbar(title = legend_title) %>%
+    layout(
+      title = paste('Prevalence of ', sec_name, ' Sector by State (by %)'),
+      geo = geo_plot
+    )
+  # saveWidget(as_widget(sector_plot), file = file_path)
+  sector_plot
+}
+sector_geo(sector_df = services_df, sec_name = 'Services')
+
+annual_state_list
+
+# create data
+aval <- list()
+for(step in 1:8){
+  aval[[step]] <-list(visible = FALSE,
+                      name = paste0('v = ', step),
+                      annual_state_df = annual_state_list[[step]])
+}
+aval[1][[1]]$visible = TRUE
+
+annual_state_list[[1:8]][10,]
+services_list <- lapply(annual_state_list, function(x) 
+  data.frame(percentage = x[10,] * 100, state = state.abb))
+services_list[[1]]$percentage
+
+# create steps and plot all traces
+steps <- list()
+annual_state_list
+p <- plot_geo()
+for (i in 1:8){
+  
+  temp = list('visible', rep(FALSE, length(aval)))
+#  step <- list(args = list('visible', rep(FALSE, length(aval))),
+#               method = 'restyle', label = paste(2010+i))
+  step <- list(args = list('visible', rep(FALSE, length(aval))),
+               method = 'restyle', label = paste(2010+i))  
+  step$args[[1]][i] = TRUE  
+  steps[[i]] = step 
+  
+  # sector_df = as.data.frame(services_list[[i]])
+  # services_df$percentage = services_list[[i]]
+  
+  p <- plot_geo(services_list[[i]], locationmode = 'USA-states') %>%
+    add_trace(
+      #z = services_df$percentage, locations = services_df$states, 
+      z = services_list[[i]]$percentage, locations = services_list[[i]]$state, 
+      colors = 'Reds'
+    ) %>%
+    colorbar(title = legend_title) %>%
+    layout(
+      title = paste('Prevalence of ', sec_name, ' Sector by State (by %)'),
+      geo = geo_plot
+    ) %>% layout(sliders = list(list(active = 8,
+                                       currentvalue = list(prefix = "Year: "),
+                                       steps = steps)))
+  #p <- sector_geo(sector_df = annual_state_list[[i]], sec_name = 'Services')
+}
+
+# add slider control to plot
+
+steps <- list()
+annual_state_list
+p <- plot_geo()
+for (i in 1:8){
+  step <- list(args = list('visible', rep(FALSE, length(aval))),
+               method = 'restyle', label = paste(2010+i))  
+  step$args[[1]][i] = TRUE  
+  steps[[i]] = step 
+  p <- plot_geo(services_list[[1]], locationmode = 'USA-states') %>%
+    add_trace(
+      z = services_list[[i]]$percentage, locations = services_list[[i]]$state, 
+      colors = 'Reds'
+    ) %>%
+    colorbar(title = legend_title) %>%
+    layout(
+      title = paste('Prevalence of ', sec_name, ' Sector by State (by %)'),
+      geo = geo_plot
+    ) %>% 
+    add_trace(
+      z = services_list[[4]]$percentage, locations = services_list[[i]]$state, 
+      colors = 'Reds'
+    ) %>%
+    layout(sliders = list(list(active = 8,
+                                     currentvalue = list(prefix = "Year: "),
+                                     steps = steps)))
+}
+
+p$x$attrs[[1]]$z
+
+
+
+
+
+
+
+
+##########
+
+
+p <- plot_ly()
+for (i in 1:11) {
+  p <- add_lines(p,x=aval[i][[1]]$x,  y=aval[i][[1]]$y, visible = aval[i][[1]]$visible, 
+                 name = aval[i][[1]]$name, type = 'scatter', mode = 'lines', hoverinfo = 'name', 
+                 line=list(color='00CED1'), showlegend = FALSE)
+  
+  step <- list(args = list('visible', rep(FALSE, length(aval))),
+               method = 'restyle')
+  step$args[[2]][i] = TRUE  
+  steps[[i]] = step 
+}  
+
+
+
+
+color_df <- as.data.frame(brewer.pal.info)
+color_df$col_names <- rownames(color_df)
+rownames(color_df) <- NULL
+seq_colors <- color_df[color_df$category == 'seq', ]$col_names
+top_sec_colors <- seq_colors[c(1, 5, 7, 12, 14, 15)]
+
+sector_html_func <- function(sec_vec = top_sec, sec_index = 1,
+                             sec_info = state_sec_df) {
+  # Creates a new dataframe from a given sector info dataframe for a specific
+  # sector. The percentage that each dataframe uses is then added. The function
+  # will then call another function, sector_geo() to create a plotly geo heatmap.
+  sec_df <- as.data.frame(sec_info[names(sec_vec[sec_index]), ])
+  colnames(sec_df) <- c('percentage')
+  sec_df$percentage <- sec_df$percentage * 100
+  sec_df$states  <- rownames(sec_df)
+  rownames(sec_df) <- NULL
+  
+  sector_geo(sector_df = sec_df, color_scheme = top_sec_colors[sec_index], 
+             sec_name = names(sec_vec[sec_index]))
+}
+
+
+sapply(1:length(top_sec), function(x) sector_html_func(sec_index = x))
+
+
+
+
+# summary/abstract what we try to see, do, what we did, our results, methods, 
+# not long, brief
+# introduction, talk about data, 
+# eda 
+# go by task..??????
+# by state total obligation
+
+
+
+# analyze total_spending of most freq bus cats
+
+# text mining the bus cat names
+# give weights to the freq/word count
+
+# word cloud...which words appear most in business category, due to the large # of businesses
+
+# tot_obl per agency
+# word cloud, weight on total_obl
+
+# Load zip info from path
+zip_file_path <- paste0(getwd(), '/transaction.csv')
+zip_info <- unzip(zip_file_path, list = TRUE)
+tran_col <- colnames(transaction)
+dim(transaction)
+tran_size <- object.size(transaction)
+####### describe file
+
+
+# clean data for state total_obl sum
+# https://stackoverflow.com/questions/4862178/remove-rows-with-all-or-some-nas-missing-values-in-data-frame
+transaction <- read.csv('transaction.csv') # explain what data is...from usaspending? etc.
+data_sub <- subset(transaction, select = c('recipient_location_state_code', 
+                               'total_obligation', 'award_id', 'fiscal_year'), 
+         transaction$recipient_location_state_code %in% state.abb &
+         transaction$total_obligation > 0 &
+         transaction$fiscal_year > 2010 &
+         transaction$fiscal_year < 2019)
+
+nrow(data_sub)
+# https://stackoverflow.com/questions/14164525/splitting-a-large-data-frame-into-smaller-segments
+# Split the data into a list of dataframes 
+length(data_list)
+library(dplyr)
+data_list <- split(data_sub, (seq(nrow(data_sub))-1) %/% 10000) 
+unique_id_func <- function(list_element) {
+  # This function works to get the unique total_obligation per
+  # award_id. It does so using the following methods:
+  # Using the list of dataframes which have been split by a certain
+  # length, split again each dataframe by award_id. It then coalesces
+  # each of these award_id's such that all the repeated information
+  # is removed and NA's are ignored if possible.
+  id_split <- split(list_element, list_element$award_id)
+  # head(id_split)
+  # id_split <- id_split[1:2]
+  df_list <- lapply(id_split, function(x) lapply(1:nrow(x), function(y) x[y,]))
+  coalesce_list <- lapply(df_list, function(x) coalesce(!!!x))
+  do.call('rbind', coalesce_list)
+}
+
+# Merge data together and repeat for final data frame
+data_list_merge <- lapply(data_list, unique_id_func)
+data_list_comb <- do.call('rbind', data_list_merge)
+data_list_award_table <- table(data_list_comb$award_id)
+data_list_award_table_sub <- data_list_award_table[data_list_award_table > 1]
+remain_dupl <- names(data_list_award_table_sub)
+remain_dupl_df <- data_list_comb[data_list_comb$award_id %in% remain_dupl, ]
+# https://stackoverflow.com/questions/15227887/how-can-i-subset-rows-in-a-data-frame-in-r-based-on-a-vector-of-values
+not_dupl_df <- data_list_comb[!data_list_comb$award_id %in% remain_dupl, ]
+last_coalesce <- unique_id_func(remain_dupl_df)
+data_comb <- rbind(last_coalesce, not_dupl_df)
+data_comb$recipient_location_state_code <- as.character(data_comb$recipient_location_state_code)
+# write.csv(data_comb, file = 'data_comb.csv')
+# nrow(data_comb)
+##### need to use proper year?
+typeof(data_comb$total_obligation)
+
+# spending by state
+ann_state_spending <- data_comb %>%
+  select(recipient_location_state_code, total_obligation, fiscal_year) %>%
+  group_by(fiscal_year, recipient_location_state_code) %>%
+  summarise(state_spending = sum(total_obligation))
+
+ann_state_spending <- as.data.frame(ann_state_spending)
+head(ann_state_spending)
+
+
+head(data_comb)
+
+# spread of sector by state
+# done...?
+
+
+

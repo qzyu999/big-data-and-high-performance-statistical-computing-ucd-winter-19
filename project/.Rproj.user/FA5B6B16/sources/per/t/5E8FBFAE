@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1551940155886.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3289457363",
+    "id" : "5E8FBFAE",
+    "lastKnownWriteTime" : 1553244939,
+    "last_content_update" : 1553244939161,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/project/state_spending.R",
+    "project_path" : "state_spending.R",
+    "properties" : {
+        "cursorPosition" : "73,12",
+        "scrollLine" : "51",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1551458619778.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "50782091",
+    "id" : "61B52747",
+    "lastKnownWriteTime" : 1551600039,
+    "last_content_update" : 1551600039199,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/hw5/bootstrap.R",
+    "project_path" : "bootstrap.R",
+    "properties" : {
+        "cursorPosition" : "19,0",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

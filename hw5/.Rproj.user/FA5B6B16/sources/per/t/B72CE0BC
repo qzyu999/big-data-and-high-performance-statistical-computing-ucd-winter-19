@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1551457993053.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "428449639",
+    "id" : "B72CE0BC",
+    "lastKnownWriteTime" : 1551600486,
+    "last_content_update" : 1551600486187,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/hw5/hw5_q.R",
+    "project_path" : "hw5_q.R",
+    "properties" : {
+        "cursorPosition" : "64,79",
+        "scrollLine" : "30"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

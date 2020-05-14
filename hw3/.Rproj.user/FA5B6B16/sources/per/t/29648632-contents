@@ -1,0 +1,44 @@
+agent = read.csv(unz('awards.zip', '100.csv'))
+agentinfo = agent$description
+priceinfo = agent$total_obligation
+
+data.frame(key = agentinfo[[1]], price = priceinfo[1])
+totable = function(k, p) {data.frame(key = k, price = p)}
+totable(agentinfo[[1]], priceinfo[1])
+tables = mapply(totable, agentinfo, priceinfo, SIMPLIFY = FALSE)
+tables[[1]]
+tables[[2]]
+
+tables = Map(totable, agentinfo, priceinfo)
+
+### 1/30
+
+# define distance
+library(cluster)
+data("agriculture")
+d1 = dist(agriculture)
+c1 = agnes(d1, method = 'single') #clustering
+par(mfrow=c(1,2))
+plot(c1)
+data("USArrests")
+d2 = dist(USArrests)
+c2 = agnes(d2, method = 'complete')
+plot(c2)
+head(c2$merge, 10)
+
+c2_sub = cutree(c2, k=4)
+dev.off()
+plot(c2_sub)
+rownames(USArrests)[c2_sub==1] # column 2 already records all the agencies
+
+c3=pam(d2, k=4) # optimized kmeans
+plot(c3)
+c3$clusinfo
+c3$clustering
+rownames(USArrests)[c3$clustering==1]
+# check whether agencies have similarities in our case, to justify a reasonable clustering
+
+# negative points are bad, closer to another cluster than current cluster
+# observations around 0...
+
+selectMethod('crossprod', class(sparse_mat))

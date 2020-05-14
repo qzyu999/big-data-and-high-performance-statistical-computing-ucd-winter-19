@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1547184211191.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "401000804",
+    "id" : "503A8593",
+    "lastKnownWriteTime" : 1547534079,
+    "last_content_update" : 1547534079144,
+    "path" : "C:/Users/qizhe/Desktop/STA 141C/hw1/hw1_final.R",
+    "project_path" : "hw1_final.R",
+    "properties" : {
+        "cursorPosition" : "123,67",
+        "scrollLine" : "111"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

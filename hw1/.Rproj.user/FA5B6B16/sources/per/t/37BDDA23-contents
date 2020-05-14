@@ -1,0 +1,59 @@
+# ask about the difference in spending
+
+file561 = read.csv(unz('awards.zip', '561.csv'))
+View(file561)
+
+
+group_func3 <- function(agency_df) {
+  annual_sum <- tapply(agency_df$total_obligation, # list of annual spending
+                       agency_df$period_of_performance_start_date,
+                       function(x) sum(x, na.rm = TRUE))
+  return(annual_sum, query)
+}
+
+annual_sum <- tapply(agencies$total_obligation, # list of annual spending
+                     agencies$period_of_performance_start_date,
+                     function(x) sum(x, na.rm = TRUE))
+
+
+test_app <- lapply(agencies, group_func2)
+test_app[[1]] # list of arrays with annual spending
+
+dummy = sapply(test_app, function(x) median(x, na.rm = TRUE))
+head(data.frame(dummy)) # dataframe of median annual spending
+
+# get agency name from agencies
+test_app2 <- lapply(agencies, group_func3)
+test_app2 <- do.call("rbind", test_app2)
+dummy_df <- cbind(test_app2, dummy)
+head(dummy_df)
+###
+group_func3 <- function(agency_df) {
+  query <- data.frame(agency_name = agency_df$funding_agency_name[1]) # Agency name
+  return(query)
+}
+
+# 'Query' the median annual spending data using group_func()
+median_annual_data <- lapply(agencies, group_func)
+
+# old code
+group_func <- function(agency_df) {
+  # The group_func will act similarly to a SQL query
+  # The function first calculates the median annual spending per agency
+  # The function will return the max median annual spending along with
+  # the year, agency ID, and agency name
+  median_annual <- tapply(agency_df$total_obligation, 
+                          agency_df$period_of_performance_start_date, 
+                          function(x) median(x, na.rm = TRUE)) # Calculate median annual spending
+  
+  query <- data.frame(max_year = names(which.max(median_annual)), # Year of max spending
+                      max_median = max(median_annual), # Max median annual spending
+                      agency_id = agency_df$funding_agency_id[1], # Agency ID
+                      agency_name = agency_df$funding_agency_name[1]) # Agency name
+  
+  return(query)
+}
+
+# 'Query' the median annual spending data using group_func()
+median_annual_data <- lapply(agencies, group_func)
+median_annual_data <- do.call("rbind", median_annual_data)

@@ -1,0 +1,54 @@
+library(fredr); library(ggplot2) # Load libraries
+# https://cran.r-project.org/web/packages/fredr/vignettes/fredr.html
+# https://fred.stlouisfed.org/release?rid=140
+api.key <- '65e973606fb36ebc54acd85cfe427fa9' # Load API
+fredr_set_key(api.key)
+
+# Load data from Economic Data from Fred St. Louis
+fred_api <- function(series_id_start, series_id_end) {
+  # The function uses the API to gather all the data by state from the
+  # economic website data Fred St. Louis. The function will first loop
+  # through the states to apply the correct series_id to each query.
+  # Then, the function will turn clean the data structure, as well as
+  # doing some data cleaning to make the data more simple.
+  # input: series_id_start: the begining of the series_id, series_id_end:
+  # the end of the series_id
+  # output: dataframe of state data for each API query
+  fred_list <- lapply(state.abb, function(state) fredr(series_id = paste(series_id_start, 
+                          state, series_id_end, sep = '')))
+  fred_df <- as.data.frame(do.call("rbind", fred_list))
+  fred_df$series_id <- substr(fred_df$series_id, start = nchar(series_id_start) + 1, 
+                              stop = nchar(fred_df$series_id) - nchar(series_id_end))
+  fred_df$date <- as.numeric(substr(fred_df$date, start = 1, stop = 4))
+  return(fred_df)
+}
+
+
+# NGSP_post_gfc <- NGSP[NGSP$date > '2007',] # post gfc
+head(NGSP)
+
+# GDP growth rate
+gdp_growth_rate <- fredr(series_id = 'CPGDPAI')
+gdp <- fredr(series_id = 'GDP')
+
+
+tail(gdp_growth_rate)
+
+NGSP <- fred_api(series_id_start = '', series_id_end = 'NGSP')
+gdp_barplot <- function(folder_dir, state_index, gdp_data) { # 
+  png(paste(folder_dir, state.abb[state_index], ".png", sep = ''))
+  myplot <- ggplot(data = subset(gdp_data, series_id == state.abb[state_index]),
+         aes(x = date, y = value)) + geom_bar(stat = 'identity') + 
+    scale_x_continuous(breaks = 0:2100) +
+    xlab(paste('Year')) + ylab('Annual GDP') + 
+    ggtitle(paste(state.name[state_index], ' Annual GDP')) +
+    geom_vline(xintercept = 2007, color = 'red') + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  print(myplot)
+  dev.off()
+}
+
+# https://ggplot2.tidyverse.org/reference/geom_abline.html
+
+sapply(1:length(state.abb), function(x)
+  gdp_barplot(folder_dir = "./state_gdp/", state_index = x, gdp_data = NGSP))
